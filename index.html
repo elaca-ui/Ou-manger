@@ -1,0 +1,1968 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Où Manger — trouve ton resto en France</title>
+<meta property="og:title" content="Où Manger" />
+<meta property="og:description" content="Trouve ta prochaine envie, où que tu sois en France. Gratuit, sans pub, sans fausses notes — basé sur OpenStreetMap." />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:image" content="og-image.png" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="Où Manger" />
+<meta name="twitter:description" content="Trouve ta prochaine envie, où que tu sois en France." />
+<meta name="description" content="Où Manger : trouve un restaurant près de toi, partout en France. Gratuit, sans compte obligatoire, basé sur OpenStreetMap." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
+<style>
+  :root{
+    --bg:#14263D;
+    --card:#1C3450;
+    --sun:#F2A93B;
+    --olive:#8FA24D;
+    --alert:#D9634D;
+    --text:#F5EFE3;
+    --muted:rgba(245,239,227,0.6);
+    --display-font: 'Fraunces', Georgia, serif;
+    --body-font: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --mono-font: 'SF Mono', 'IBM Plex Mono', Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin:0; height:100%; color:var(--text); font-family:var(--body-font);
+    background:
+      radial-gradient(circle at 15% -10%, rgba(242,169,59,0.08) 0%, transparent 40%),
+      radial-gradient(circle at 85% 100%, rgba(143,162,77,0.08) 0%, transparent 45%),
+      radial-gradient(circle at 15% 0%, #1b3352 0%, var(--bg) 45%, #0d1826 100%);
+  }
+  #app { display:flex; height:100vh; }
+
+  /* --- Page d'accueil --- */
+  #landing {
+    position: fixed; inset: 0; z-index: 2000;
+    display: flex; align-items: center; justify-content: center;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(242,169,59,0.18) 0%, transparent 45%),
+      radial-gradient(circle at 85% 80%, rgba(143,162,77,0.15) 0%, transparent 45%),
+      radial-gradient(circle at 50% 0%, #1b3352 0%, var(--bg) 55%, #0a1420 100%);
+    padding: 2rem;
+    transition: opacity .4s ease, visibility .4s ease;
+  }
+  #landing.hide { opacity: 0; visibility: hidden; pointer-events: none; }
+  .landing-content { text-align: center; max-width: 480px; animation: fadeSlideIn .5s ease; }
+  .landing-badge {
+    width: 76px; height: 76px; border-radius: 22px; margin: 0 auto 1.5rem;
+    background: linear-gradient(135deg, var(--sun), #E63946);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.2rem; box-shadow: 0 10px 30px rgba(242,169,59,0.4);
+  }
+  .landing-title {
+    font-family: var(--display-font); font-size: 3rem; font-weight: 700;
+    margin: 0 0 1.1rem; letter-spacing: -0.02em;
+  }
+  .landing-title span {
+    background: linear-gradient(135deg, var(--sun), #ffcf85);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .landing-tagline {
+    font-size: 1.05rem; color: var(--muted); line-height: 1.6; margin: 0 0 2.2rem;
+  }
+  #landing-start-btn { padding: 1rem 2.2rem; font-size: 1.05rem; margin: 0 auto; }
+  .landing-footnote { margin-top: 1.3rem; font-size: 0.75rem; color: var(--muted); opacity: 0.7; }
+
+  /* --- À propos --- */
+  .about-link-btn {
+    background:none; border:none; color:var(--sun); font-size:0.75rem; font-weight:600;
+    text-decoration:underline; cursor:pointer; padding:0; font-family: var(--body-font);
+  }
+  #about-overlay {
+    position: fixed; inset: 0; z-index: 2500;
+    display:none; align-items:center; justify-content:center;
+    background: rgba(13,26,41,0.75); backdrop-filter: blur(6px); padding: 1.5rem;
+  }
+  #about-overlay.show { display:flex; }
+  #about-modal {
+    position: relative; background: linear-gradient(180deg, rgba(32,58,89,0.98), var(--card));
+    border-radius: 18px; padding: 2rem; max-width: 460px; width:100%; max-height:85vh; overflow-y:auto;
+    border: 1px solid rgba(245,239,227,0.12); box-shadow: 0 24px 70px rgba(0,0,0,0.55);
+    animation: fadeSlideIn .3s ease;
+  }
+  #about-modal h2 { font-family: var(--display-font); font-size: 1.7rem; margin: 0 0 1rem; }
+  #about-modal p { font-size: 0.9rem; line-height: 1.65; color: var(--text); margin: 0 0 0.9rem; }
+  .about-close-btn {
+    position:absolute; top:1.1rem; right:1.1rem; background:none; border:none;
+    color: var(--muted); font-size:1.2rem; cursor:pointer;
+  }
+
+  #sidebar {
+    width: 360px;
+    min-width: 360px;
+    background: linear-gradient(180deg, rgba(28,52,80,0.97), rgba(20,38,61,0.99));
+    backdrop-filter: blur(12px);
+    padding: 1.7rem 1.4rem;
+    overflow-y: auto;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.35);
+    border-right: 1px solid rgba(245,239,227,0.06);
+    display:flex;
+    flex-direction:column;
+    gap: 1.4rem;
+    position: relative;
+    z-index: 5;
+  }
+  #sidebar::-webkit-scrollbar { width: 8px; }
+  #sidebar::-webkit-scrollbar-track { background: transparent; }
+  #sidebar::-webkit-scrollbar-thumb { background: rgba(245,239,227,0.15); border-radius: 999px; }
+  #sidebar::-webkit-scrollbar-thumb:hover { background: rgba(245,239,227,0.3); }
+  #sidebar { scrollbar-width: thin; scrollbar-color: rgba(245,239,227,0.2) transparent; }
+  #sidebar > div { padding-bottom: 1.3rem; border-bottom: 1px solid rgba(245,239,227,0.07); }
+  #sidebar > div:last-of-type, #sidebar > button, #sidebar > #status-msg, #sidebar > #result-count { border-bottom: none; }
+  #map-wrap { position:relative; flex:1; min-width:0; }
+
+  #view-toggle-btn {
+    position:absolute; top:1rem; right:1rem; z-index:900;
+    padding:0.6rem 1rem; border-radius:999px; border:none;
+    background: var(--card); color:var(--text); font-size:0.82rem; font-weight:700; cursor:pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.45); border: 1px solid rgba(245,239,227,0.12);
+  }
+
+  #list-view {
+    display:none; flex:1; min-width:0; overflow-y:auto; padding: 1.3rem;
+    background: radial-gradient(circle at 15% -10%, rgba(242,169,59,0.06) 0%, transparent 40%), var(--bg);
+  }
+  #list-view.show { display:block; }
+  #list-view-items { display:flex; flex-direction:column; gap:0.7rem; max-width:640px; margin:0 auto; }
+  .list-card {
+    display:flex; gap:0.9rem; align-items:center;
+    background: var(--card); border: 1px solid rgba(245,239,227,0.08); border-radius: 14px;
+    padding: 0.9rem 1.1rem; cursor:pointer; transition: all .15s ease;
+    box-shadow: inset 0 1px 0 rgba(245,239,227,0.06), 0 2px 8px rgba(0,0,0,0.25);
+  }
+  .list-card:hover { border-color: rgba(242,169,59,0.4); transform: translateY(-2px); box-shadow: inset 0 1px 0 rgba(245,239,227,0.08), 0 6px 18px rgba(0,0,0,0.35); }
+  .list-card .lc-icon {
+    width:44px; height:44px; border-radius:12px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:1.3rem;
+    background: linear-gradient(135deg, var(--sun), #E63946);
+  }
+  .list-card .lc-body { flex:1; min-width:0; }
+  .list-card .lc-name { font-weight:700; font-size:0.95rem; }
+  .list-card .lc-sub { font-size:0.78rem; color:var(--muted); margin-top:0.15rem; }
+  .list-card .lc-right { text-align:right; flex-shrink:0; font-size:0.78rem; color: var(--sun); font-family: var(--mono-font); }
+  .list-empty { text-align:center; color:var(--muted); padding: 3rem 1rem; font-size:0.9rem; }
+  #map { width:100%; height:100%; background:#0d1a29; }
+
+  /* --- Mobile --- */
+  #mobile-topbar {
+    display:none; position:fixed; top:0; left:0; right:0; z-index:900;
+    padding: calc(0.6rem + env(safe-area-inset-top, 0px)) 1rem 0.6rem;
+    background: var(--bg); border-bottom: 1px solid rgba(245,239,227,0.12);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.45);
+  }
+  #mobile-topbar button {
+    width:100%; padding:0.65rem; border-radius:10px; border:1px solid rgba(242,169,59,0.5);
+    background: rgba(242,169,59,0.12); color: var(--text); font-weight:700; font-size:0.88rem; cursor:pointer;
+  }
+  .mobile-close-sidebar-btn { display:none; }
+  #mobile-scrim {
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:950;
+  }
+  #mobile-scrim.show { display:block; }
+
+  #map-loading {
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    pointer-events:none; z-index: 3; transition: opacity .3s ease;
+  }
+  #map-loading.hide { opacity:0; pointer-events:none; }
+  .map-loading-card {
+    background: var(--card); color: var(--text); padding: 0.8rem 1.3rem; border-radius: 999px;
+    font-size: 0.85rem; font-weight:600; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    display:flex; align-items:center; gap:0.6rem; border: 1px solid rgba(245,239,227,0.1);
+  }
+
+  @media (max-width: 900px) {
+    #mobile-topbar { display:block; }
+    #map-wrap { margin-top: calc(3.4rem + env(safe-area-inset-top, 0px)); height: calc(100% - 3.4rem - env(safe-area-inset-top, 0px)); }
+    #list-view { margin-top: calc(3.4rem + env(safe-area-inset-top, 0px)); height: calc(100% - 3.4rem - env(safe-area-inset-top, 0px)); }
+    #app { flex-direction: column; }
+    #sidebar {
+      position: fixed; top:0; bottom:0; left:0; width:88vw; max-width:360px; min-width:0;
+      transform: translateX(-105%); transition: transform .25s ease; z-index: 1000;
+      padding-top: calc(1.7rem + env(safe-area-inset-top, 0px));
+    }
+    #sidebar.mobile-open { transform: translateX(0); }
+    .mobile-close-sidebar-btn {
+      display:flex; align-items:center; justify-content:center; gap:0.4rem;
+      width:100%; padding:0.7rem; margin-bottom:1rem;
+      background: rgba(230,57,70,0.12); border:1px solid rgba(230,57,70,0.4); border-radius:10px;
+      color: var(--text); font-weight:600; font-size:0.85rem; cursor:pointer;
+    }
+
+    /* Page d'accueil : textes plus compacts sur petit écran */
+    .landing-title { font-size: 2.1rem; }
+    .landing-tagline { font-size: 0.92rem; }
+    .landing-badge { width: 62px; height: 62px; font-size: 1.8rem; }
+    #landing-start-btn { width: 100%; padding: 0.9rem; }
+
+    /* Modale d'inscription : occupe mieux l'écran, boutons plus faciles à toucher */
+    #onboard-modal { padding: 1.5rem; max-height: 85vh; }
+    #onboard-modal h2 { font-size: 1.25rem; }
+    button.primary, button.ghost { min-height: 46px; } /* cible tactile confortable */
+
+    /* Popups restaurant : ne dépassent jamais de l'écran */
+    .leaflet-popup-content { min-width: unset; max-width: calc(88vw - 3rem); }
+
+    /* Badges : un peu plus compacts pour tenir sur une ligne */
+    .badge-icon { width: 38px; height: 38px; font-size: 1.1rem; }
+
+    /* Chips : un peu plus grandes pour un confort tactile correct */
+    .chip { padding: 0.55rem 1rem; }
+
+    h1 { font-size: 1.5rem; }
+  }
+
+  @media (max-width: 420px) {
+    .landing-title { font-size: 1.75rem; }
+    #sidebar { width: 92vw; padding-left: 1rem; padding-right: 1rem; }
+  }
+
+  h1 {
+    font-family: var(--display-font);
+    font-size: 1.85rem;
+    margin: 0;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  h1 span {
+    background: linear-gradient(135deg, var(--sun), #ffcf85);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .subtitle { color: var(--muted); font-size: 0.82rem; margin-top: 0.35rem; line-height:1.5; }
+  .pin-legend { color: var(--muted); font-size: 0.72rem; margin-top: 0.5rem; }
+
+  /* --- Badges ludiques --- */
+  .badge-row { display:flex; flex-wrap:wrap; gap:0.5rem; }
+  .badge-icon {
+    width: 42px; height: 42px; border-radius: 12px;
+    display:flex; align-items:center; justify-content:center; font-size:1.25rem;
+    background: rgba(245,239,227,0.04); border: 1px solid rgba(245,239,227,0.1);
+    filter: grayscale(1); opacity: 0.35; transition: all .25s ease; cursor: default;
+  }
+  .badge-icon.earned {
+    filter: none; opacity: 1;
+    background: linear-gradient(135deg, rgba(242,169,59,0.18), rgba(230,57,70,0.12));
+    border-color: rgba(242,169,59,0.5);
+    box-shadow: 0 3px 10px rgba(242,169,59,0.2);
+  }
+
+  #badge-toast-container {
+    position: fixed; top: 1.2rem; left: 50%; transform: translateX(-50%);
+    z-index: 3000; display:flex; flex-direction:column; gap:0.5rem; align-items:center;
+    pointer-events: none;
+  }
+  .badge-toast {
+    display:flex; align-items:center; gap:0.7rem;
+    background: var(--card); border: 1px solid rgba(242,169,59,0.5);
+    border-radius: 14px; padding: 0.8rem 1.2rem;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.55);
+    animation: toastIn .35s cubic-bezier(.34,1.56,.64,1), toastOut .35s ease forwards 3.2s;
+  }
+  .badge-toast .toast-icon {
+    width: 38px; height: 38px; border-radius: 10px; flex-shrink:0;
+    background: linear-gradient(135deg, var(--sun), #E63946);
+    display:flex; align-items:center; justify-content:center; font-size:1.2rem;
+  }
+  .badge-toast .toast-title { font-size: 0.7rem; color: var(--muted); text-transform:uppercase; letter-spacing:0.04em; }
+  .badge-toast .toast-label { font-weight: 700; font-size: 0.92rem; }
+  @keyframes toastIn { from { opacity:0; transform: translateY(-14px) scale(0.9); } to { opacity:1; transform: translateY(0) scale(1); } }
+  @keyframes toastOut { to { opacity:0; transform: translateY(-14px) scale(0.9); } }
+
+  .block-label {
+    display:flex; align-items:center; gap:0.5rem;
+    font-weight:700; font-size:0.76rem; margin-bottom:0.7rem;
+    letter-spacing: 0.04em; text-transform: uppercase; color: rgba(245,239,227,0.75);
+  }
+  .chips { display:flex; flex-wrap:wrap; gap:0.5rem; }
+  .chip {
+    padding: 0.45rem 0.9rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border: 1px solid rgba(245,239,227,0.16);
+    background: rgba(245,239,227,0.03);
+    color: var(--text);
+    cursor: pointer;
+    transition: all .18s cubic-bezier(.4,0,.2,1);
+  }
+  .chip:hover { border-color: rgba(245,239,227,0.4); transform: translateY(-1px); }
+  .chip.active-envie {
+    background: linear-gradient(135deg, var(--sun), #ffc266);
+    border-color: transparent; color: var(--bg); font-weight:700;
+    box-shadow: 0 3px 12px rgba(242,169,59,0.35);
+  }
+  .chip.active-regime {
+    background: linear-gradient(135deg, var(--olive), #a8c069);
+    border-color: transparent; color: var(--bg); font-weight:700;
+    box-shadow: 0 3px 12px rgba(143,162,77,0.35);
+  }
+
+  .range-row { display:flex; justify-content:space-between; font-size:0.8rem; color:var(--muted); }
+  input[type=range] { width:100%; accent-color: var(--sun); margin-top:0.4rem; }
+
+  button.primary, button.ghost {
+    display:flex; align-items:center; justify-content:center; gap:0.5rem;
+    font-size:0.9rem; cursor:pointer; border-radius:12px;
+    transition: all .18s cubic-bezier(.4,0,.2,1);
+  }
+  button.ghost {
+    padding: 0.6rem 1rem; border:1px solid rgba(242,169,59,0.5); background:transparent; color:var(--sun);
+  }
+  button.ghost:hover { background: rgba(242,169,59,0.08); border-color: var(--sun); }
+  button.primary {
+    padding: 0.9rem; border:none;
+    background: linear-gradient(135deg, var(--sun), #e8973f);
+    color: var(--bg); font-weight:700; font-size:1rem;
+    box-shadow: 0 4px 16px rgba(242,169,59,0.3);
+  }
+  button.primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(242,169,59,0.4); }
+  button.primary:disabled, button.ghost:disabled { opacity:0.6; cursor:default; }
+
+  #status-msg {
+    font-size: 0.82rem; padding: 0.7rem 0.9rem; border-radius: 10px;
+    background: rgba(217,99,77,0.15); border:1px solid var(--alert); display:none;
+    flex-direction: column; gap:0.5rem; line-height: 1.4;
+  }
+  #status-msg.show { display:flex; }
+  .retry-btn {
+    align-self: flex-start; padding: 0.35rem 0.8rem; border-radius: 8px;
+    border: 1px solid var(--alert); background: rgba(217,99,77,0.15); color: var(--text);
+    font-size: 0.78rem; cursor: pointer; font-weight: 600;
+  }
+  .retry-btn:hover { background: rgba(217,99,77,0.3); }
+
+  #result-count { font-size: 0.8rem; color: var(--muted); }
+
+  footer.legal {
+    font-size: 0.7rem; color: var(--muted); line-height:1.6; margin-top:auto; padding-top:1rem;
+    border-top: 1px solid rgba(245,239,227,0.08);
+  }
+
+  .spin { animation: spin 1s linear infinite; display:inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* --- Fluidité générale : petit effet d'enfoncement au clic --- */
+  button, .chip, .list-card { transition: transform .12s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease; }
+  button:active:not(:disabled), .chip:active { transform: scale(0.96); }
+
+  @keyframes popIn {
+    from { transform: scale(0.5); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .resto-pin-wrap, .cluster-bubble { animation: popIn .28s cubic-bezier(.34,1.56,.64,1); }
+
+  @keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .step.active { animation: fadeSlideIn .28s ease; }
+  .leaflet-popup { animation: fadeSlideIn .18s ease; }
+
+  /* Petit sursaut sur le compteur de résultats quand une nouvelle recherche arrive */
+  @keyframes countPop {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.06); color: var(--sun); }
+    100% { transform: scale(1); }
+  }
+  #result-count.pop { animation: countPop .35s ease; }
+
+  /* Pulsation douce du bouton principal pendant une recherche en cours */
+  @keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 4px 16px rgba(242,169,59,0.3); }
+    50% { box-shadow: 0 4px 24px rgba(242,169,59,0.55); }
+  }
+  button.primary:disabled { animation: pulseGlow 1.3s ease-in-out infinite; }
+
+  /* Petite vaguelette sur les chips au clic, en plus du scale existant */
+  .chip { position: relative; overflow: hidden; }
+
+  /* Icône flottante douce sur le pin "toi" pour bien le distinguer */
+  @keyframes floatY {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+  }
+  .pin.you { animation: floatY 2.2s ease-in-out infinite; }
+
+  /* pin marker */
+  .pin {
+    width: 26px; height: 26px; border-radius: 50% 50% 50% 0;
+    background: var(--sun); transform: rotate(-45deg);
+    border: 2px solid var(--bg);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+  .pin::after { content:''; width:8px; height:8px; border-radius:50%; background:var(--bg); transform: rotate(45deg); }
+  .pin.you { background: var(--olive); }
+
+  /* popup */
+  .leaflet-popup-content-wrapper {
+    background: var(--card); color: var(--text); border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+  .leaflet-popup-tip { background: var(--card); }
+  .leaflet-popup-content { margin: 1rem 1.1rem; font-family: var(--body-font); min-width: 180px; }
+  .leaflet-popup-close-button { color: var(--muted) !important; }
+  .cluster-bubble {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #FFD27A, var(--sun));
+    border: 3px solid var(--bg); color: var(--bg);
+    display:flex; align-items:center; justify-content:center;
+    font-family: var(--body-font); font-weight: 700; font-size: 0.85rem;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.5);
+    transition: transform .15s ease;
+  }
+  .cluster-bubble:hover { transform: scale(1.08); }
+  .resto-pin-wrap { transition: transform .15s ease; }
+  .resto-pin-wrap:hover { transform: scale(1.12); z-index: 1000 !important; }
+  .pop-photo {
+    width: calc(100% + 2.2rem); margin: -1rem -1.1rem 0.7rem; display:block;
+    height: 130px; object-fit: cover;
+  }
+  .pop-title-row { display:flex; align-items:flex-start; justify-content:space-between; gap:0.5rem; }
+  .pop-title { font-family: var(--display-font); font-size: 1.1rem; font-weight:700; margin-bottom:0.15rem; line-height:1.25; }
+  .pop-fav-btn {
+    background:none; border:none; font-size:1.3rem; line-height:1; cursor:pointer; flex-shrink:0;
+    color: rgba(245,239,227,0.4); padding:0; transition: transform .15s ease, color .15s ease;
+  }
+  .pop-fav-btn.active { color: #E63946; }
+  .pop-fav-btn:active { transform: scale(1.3); }
+  .pop-sub { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.55rem; }
+  .pop-badges { display:flex; flex-wrap:wrap; gap:0.3rem; margin-bottom:0.55rem; }
+  .pop-badge {
+    font-size: 0.68rem; font-weight:600; padding:0.18rem 0.55rem; border-radius:999px;
+    background: rgba(143,162,77,0.2); color: var(--olive);
+  }
+  .pop-line { font-size: 0.78rem; color: var(--muted); margin-bottom:0.2rem; }
+  .pop-dist {
+    display:inline-block; font-family: var(--mono-font); color: var(--sun); font-size:0.78rem;
+    background: rgba(242,169,59,0.1); padding: 0.15rem 0.5rem; border-radius: 6px;
+  }
+  .pop-open-status { font-size: 0.75rem; font-weight:600; margin-top: 0.4rem; }
+  .pop-open-status.open { color: #7bc47f; }
+  .pop-open-status.closed { color: #e07a6f; }
+  .pop-rating { font-size: 0.78rem; margin-top: 0.5rem; }
+  .rating-avg { color: var(--sun); font-weight: 700; }
+  .rating-count { color: var(--muted); }
+  .star-input { margin-top: 0.3rem; display:flex; }
+  .star-input .star {
+    font-size: 1.2rem; color: rgba(245,239,227,0.25); cursor: pointer; margin-right: 3px;
+    transition: color 0.1s, transform 0.1s;
+  }
+  .star-input .star:hover { color: var(--sun); transform: scale(1.15); }
+  .pop-links { margin-top:0.7rem; display:flex; flex-wrap:wrap; gap:0.5rem; }
+  .pop-links a {
+    display:inline-flex; align-items:center; gap:0.3rem;
+    color: var(--bg); font-size:0.78rem; font-weight:700; text-decoration:none;
+    background: linear-gradient(135deg, var(--sun), #e8973f);
+    padding: 0.4rem 0.8rem; border-radius: 8px;
+  }
+  .pop-share-btn {
+    display:inline-flex; align-items:center; gap:0.3rem;
+    color: var(--text); font-size:0.78rem; font-weight:700;
+    background: rgba(245,239,227,0.08); border: 1px solid rgba(245,239,227,0.2);
+    padding: 0.4rem 0.8rem; border-radius: 8px; cursor:pointer; font-family: var(--body-font);
+  }
+  .pop-share-btn:hover { background: rgba(245,239,227,0.15); }
+  .no-rating-note { font-size: 0.68rem; color: var(--muted); font-style: italic; margin-top:0.3rem; }
+
+  /* --- Modal inscription / préférences --- */
+  #onboard-overlay {
+    position: fixed; inset: 0; background: rgba(13,26,41,0.75);
+    backdrop-filter: blur(6px);
+    display:none; align-items:center; justify-content:center; z-index: 1000;
+    padding: 1.5rem;
+  }
+  #onboard-overlay.show { display:flex; }
+  #onboard-modal {
+    background: linear-gradient(180deg, rgba(32,58,89,0.98), var(--card));
+    border-radius: 18px; padding: 1.9rem;
+    width: 100%; max-width: 420px; max-height: 90vh; overflow-y:auto;
+    border: 1px solid rgba(245,239,227,0.12);
+    box-shadow: 0 24px 70px rgba(0,0,0,0.55), 0 0 0 1px rgba(242,169,59,0.06);
+  }
+  #onboard-modal h2 {
+    font-family: var(--display-font); font-size: 1.4rem; margin: 0 0 0.3rem; font-weight:700;
+  }
+  #onboard-modal .step-sub { color: var(--muted); font-size: 0.8rem; margin-bottom: 1.2rem; line-height:1.5; }
+  #onboard-modal .step-progress {
+    display:flex; gap:0.35rem; margin-bottom: 1.3rem;
+  }
+  #onboard-modal .step-progress span {
+    flex:1; height: 4px; border-radius: 999px; background: rgba(245,239,227,0.15); transition: background .2s ease;
+  }
+  #onboard-modal .step-progress span.done { background: linear-gradient(90deg, var(--sun), #ffcf85); }
+  #onboard-modal label {
+    display:block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.3rem; margin-top: 0.9rem; font-weight:500;
+  }
+  #onboard-modal input[type=text], #onboard-modal input[type=email] {
+    width:100%; padding: 0.65rem 0.8rem; border-radius: 10px; border: 1px solid rgba(245,239,227,0.2);
+    background: rgba(245,239,227,0.05); color: var(--text); font-size: 0.9rem; font-family: var(--body-font);
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  #onboard-modal input[type=text]:focus, #onboard-modal input[type=email]:focus {
+    outline: none; border-color: var(--sun); box-shadow: 0 0 0 3px rgba(242,169,59,0.18);
+  }
+  .step { display:none; }
+  .step.active { display:block; }
+  .onboard-nav { display:flex; gap:0.6rem; margin-top: 1.5rem; }
+  .onboard-nav button.ghost, .onboard-nav button.primary { flex:1; }
+  #onboard-skip {
+    display:block; text-align:center; margin-top: 0.9rem; font-size: 0.75rem;
+    color: var(--muted); background:none; border:none; cursor:pointer; text-decoration: underline;
+  }
+  .profile-pill {
+    display:inline-flex; align-items:center; gap:0.4rem; font-size: 0.78rem;
+    background: rgba(242,169,59,0.12); color: var(--sun); padding: 0.4rem 0.7rem; border-radius: 10px;
+  }
+  .freetext-input {
+    width:100%; margin-top:0.6rem; padding: 0.5rem 0.7rem; border-radius: 8px;
+    border: 1px solid rgba(245,239,227,0.2); background: rgba(245,239,227,0.05);
+    color: var(--text); font-size: 0.82rem; font-family: var(--body-font);
+  }
+  .freetext-input::placeholder { color: var(--muted); }
+  .freetext-input:focus { outline: 1px solid var(--sun); }
+  /* Les navigateurs ignorent souvent la couleur de fond custom sur la liste déroulante ouverte d'un <select>,
+     ce qui donnait du texte clair sur fond clair par défaut du système : on force des couleurs lisibles ici. */
+  select.freetext-input { cursor: pointer; }
+  select.freetext-input option {
+    background: #F5EFE3; color: #14263D;
+  }
+  .suggestions-box {
+    position:absolute; top:100%; left:0; right:0; z-index:20;
+    background: var(--card); border: 1px solid rgba(245,239,227,0.15); border-radius: 10px;
+    margin-top: 0.3rem; overflow:hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    display:none;
+  }
+  .suggestions-box.show { display:block; }
+  .suggestions-box .sugg-item {
+    padding: 0.55rem 0.8rem; font-size: 0.82rem; cursor:pointer;
+    border-bottom: 1px solid rgba(245,239,227,0.06);
+  }
+  .suggestions-box .sugg-item:last-child { border-bottom: none; }
+  .suggestions-box .sugg-item:hover, .suggestions-box .sugg-item.highlighted { background: rgba(242,169,59,0.14); }
+  .suggestions-box .sugg-name { font-weight: 600; }
+  .suggestions-box .sugg-sub { color: var(--muted); font-size: 0.72rem; }
+</style>
+</head>
+<body>
+<div id="landing">
+  <div class="landing-content">
+    <div class="landing-badge">🍴</div>
+    <h1 class="landing-title">Où <span>Manger</span></h1>
+    <p class="landing-tagline">Trouve ta prochaine envie, où que tu sois en France.<br/>Pas de pub, pas de fausses notes, juste des vrais restos autour de toi.</p>
+    <button class="primary" id="landing-start-btn">Commencer →</button>
+    <div class="landing-footnote">Gratuit · Sans compte obligatoire · Données OpenStreetMap</div>
+  </div>
+</div>
+<div id="app">
+  <div id="sidebar">
+    <button class="mobile-close-sidebar-btn" id="close-sidebar-btn">✕ Fermer</button>
+    <div>
+      <div style="display:flex; align-items:center; gap:0.7rem;">
+        <div style="width:38px; height:38px; border-radius:11px; background:linear-gradient(135deg, var(--sun), #E63946); display:flex; align-items:center; justify-content:center; font-size:1.1rem; flex-shrink:0; box-shadow:0 4px 12px rgba(242,169,59,0.35);">🍴</div>
+        <h1>Où <span>Manger</span></h1>
+      </div>
+      <div class="subtitle">Prototype carte — démarré à Montpellier, prêt pour toute la France</div>
+      <div class="pin-legend">🍴 Restaurant &nbsp;·&nbsp; 🍔 Fast-food &nbsp;·&nbsp; ☕ Café</div>
+    </div>
+
+    <div id="profile-summary" style="display:none;">
+      <div class="block-label">👤 <span id="profile-name-label"></span></div>
+      <div class="chips" id="profile-pills"></div>
+      <button class="ghost" id="edit-profile-btn" style="width:100%; margin-top:0.7rem;">Modifier mes préférences</button>
+    </div>
+
+    <div>
+      <div class="block-label">🏆 Tes badges</div>
+      <div class="badge-row" id="badge-row"></div>
+    </div>
+
+    <div>
+      <div class="block-label">📍 <span id="center-label">Montpellier (Comédie)</span></div>
+      <div style="font-size:0.72rem; color:var(--muted); margin-bottom:0.4rem;">Pour changer de ville — pas pour chercher un resto précis 👇</div>
+      <input type="text" class="freetext-input" id="address-search" placeholder="Une ville ou une adresse (ex: Nîmes, Lyon...)" style="margin-top:0;" />
+      <button class="ghost" id="address-search-btn" style="width:100%; margin-top:0.5rem;">🔎 Aller à cette ville</button>
+      <button class="ghost" id="locate-btn" style="width:100%; margin-top:0.5rem;">Utiliser ma position</button>
+      <div style="margin-top:1rem;">
+        <div class="range-row"><span>Rayon de recherche</span><span id="radius-val">2 km</span></div>
+        <input type="range" id="radius" min="300" max="20000" step="200" value="2000" />
+      </div>
+    </div>
+
+    <div>
+      <div class="block-label">🍽️ Une envie précise, ou une enseigne ?</div>
+      <div class="chips" id="envie-chips"></div>
+      <div style="position:relative;">
+        <input type="text" class="freetext-input" id="envie-freetext" placeholder="Tape ici : tacos, crêpes, McDo, KFC, Buffalo Grill..." autocomplete="off" />
+        <div id="envie-suggestions" class="suggestions-box"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="block-label">🥗 Régime alimentaire</div>
+      <div class="chips" id="regime-chips"></div>
+      <input type="text" class="freetext-input" id="regime-freetext" placeholder="Ou précise une restriction (ex: sans gluten...)" />
+    </div>
+
+    <div>
+      <div class="block-label">✨ Autres critères</div>
+      <div class="chips" id="extras-chips">
+        <button class="chip" id="open-now-chip">🟢 Ouvert maintenant</button>
+        <button class="chip" id="favorites-chip">❤️ Mes favoris (<span id="fav-count">0</span>)</button>
+      </div>
+      <div style="font-size:0.68rem; color:var(--muted); margin-top:0.35rem;">Basé sur les horaires OpenStreetMap quand ils sont renseignés — les établissements sans horaires connus ne sont pas exclus par défaut.</div>
+    </div>
+
+    <div>
+      <div class="block-label">↕️ Trier par</div>
+      <select id="sort-select" class="freetext-input">
+        <option value="distance">Distance (le plus proche d'abord)</option>
+        <option value="note">Note maison (le mieux noté d'abord)</option>
+      </select>
+    </div>
+
+    <div>
+      <div class="block-label">⭐ Note minimum</div>
+      <select id="min-rating-select" class="freetext-input">
+        <option value="0">Toutes les notes (y compris non notés)</option>
+        <option value="1">1 étoile et +</option>
+        <option value="2">2 étoiles et +</option>
+        <option value="3">3 étoiles et +</option>
+        <option value="4">4 étoiles et +</option>
+        <option value="5">5 étoiles uniquement</option>
+      </select>
+    </div>
+
+    <button class="primary" id="search-btn">🔎 Chercher où manger</button>
+    <button class="ghost" id="surprise-btn" style="width:100%;">🎲 Tire un resto au sort</button>
+    <div id="status-msg"></div>
+    <div id="result-count"></div>
+
+    <footer class="legal">
+      Données © contributeurs OpenStreetMap (licence ODbL). Pas de note affichée : cette source gratuite n'en fournit pas
+      de fiable, on préfère ne rien inventer.<br /><br />
+      Aucune donnée personnelle collectée. Géolocalisation utilisée localement, sur ton consentement uniquement.<br /><br />
+      💡 Si les recherches échouent tout le temps : ouvrir ce fichier en double-clic (adresse qui commence par <code>file://</code>) peut être bloqué par ton navigateur. Solution gratuite en 30 secondes : installe Node.js, puis dans le dossier du fichier lance <code>npx serve .</code> et ouvre l'adresse <code>http://localhost:3000</code> affichée. Encore mieux pour le long terme : héberge-le gratuitement sur GitHub Pages ou Netlify.<br /><br />
+      <button class="about-link-btn" id="open-about-btn">ℹ️ À propos de ce projet</button>
+    </footer>
+  </div>
+
+  <div id="map-wrap">
+    <div id="map"></div>
+    <div id="map-loading">
+      <div class="map-loading-card">
+        <span class="spin">↻</span> Recherche des restaurants autour de toi…
+      </div>
+    </div>
+    <button id="view-toggle-btn">📋 Vue liste</button>
+  </div>
+
+  <div id="list-view">
+    <div id="list-view-items"></div>
+  </div>
+
+  <div id="mobile-topbar">
+    <button id="open-sidebar-btn">☰ Filtres et restrictions</button>
+  </div>
+  <div id="mobile-scrim"></div>
+  <div id="badge-toast-container"></div>
+</div>
+
+<div id="about-overlay">
+  <div id="about-modal">
+    <button class="about-close-btn" id="close-about-btn">✕</button>
+    <div class="landing-badge" style="margin:0 0 1.2rem;">🍴</div>
+    <h2>Où <span style="color:var(--sun);">Manger</span></h2>
+    <p>Ce projet est né d'une idée simple : trouver un resto autour de soi ne devrait pas dépendre d'une appli truffée de pubs et de fausses notes gonflées.</p>
+    <p><strong>Où Manger</strong> s'appuie entièrement sur OpenStreetMap, une carte du monde construite et entretenue par des bénévoles, en licence libre. Pas de données personnelles collectées, pas de compte obligatoire, pas de note inventée quand la vraie info n'existe pas.</p>
+    <p>C'est un projet indépendant, construit petit à petit, avec une préférence assumée pour l'honnêteté plutôt que pour la perfection à tout prix — certaines infos peuvent manquer selon les endroits, tout simplement parce que la donnée gratuite et communautaire n'est jamais parfaitement complète.</p>
+    <p style="color:var(--muted); font-size:0.82rem;">Fait avec l'aide de Claude (Anthropic) — carte via Leaflet.js et OpenStreetMap, géocodage via Nominatim.</p>
+    <button class="primary" id="about-close-btn-2" style="width:100%; margin-top:1rem;">Retour à la carte</button>
+  </div>
+</div>
+
+<div id="onboard-overlay">
+  <div id="onboard-modal">
+    <div class="step-progress">
+      <span id="prog-1" class="done"></span><span id="prog-2"></span><span id="prog-3"></span><span id="prog-4"></span>
+    </div>
+
+    <div class="step active" id="step-1">
+      <h2>Où es-tu ?</h2>
+      <div class="step-sub">L'app couvre toute la France — dis-nous où chercher pour commencer.</div>
+      <button class="primary" id="loc-geoloc-btn" style="width:100%; margin-top:0.9rem;">📍 Partager ma position</button>
+      <label for="loc-address-input">Ou tape une ville</label>
+      <input type="text" id="loc-address-input" placeholder="Lyon, Marseille, Nîmes..." />
+      <div class="onboard-nav">
+        <button class="primary" id="loc-address-btn" style="width:100%">Valider cette ville</button>
+      </div>
+      <button id="onboard-skip-location">Passer, rester sur Montpellier pour l'instant</button>
+    </div>
+
+    <div class="step" id="step-2">
+      <h2>Comment tu t'appelles ?</h2>
+      <div class="step-sub">Juste pour personnaliser cette visite — pas de compte, rien n'est sauvegardé une fois la page fermée.</div>
+      <label for="onboard-name">Prénom</label>
+      <input type="text" id="onboard-name" placeholder="Luc" />
+      <div class="onboard-nav">
+        <button class="primary" id="step2-next" style="width:100%">Continuer</button>
+      </div>
+      <button id="onboard-skip">Passer, je préfère choisir mes filtres moi-même</button>
+    </div>
+
+    <div class="step" id="step-3">
+      <h2>Tes cuisines préférées</h2>
+      <div class="step-sub">Choisis-en une ou plusieurs — on les proposera en priorité.</div>
+      <div class="chips" id="onboard-envie-chips"></div>
+      <div class="onboard-nav">
+        <button class="ghost" id="step3-back">Retour</button>
+        <button class="primary" id="step3-next">Continuer</button>
+      </div>
+    </div>
+
+    <div class="step" id="step-4">
+      <h2>Tes restrictions alimentaires</h2>
+      <div class="step-sub">On filtrera automatiquement les établissements qui les respectent.</div>
+      <div class="chips" id="onboard-regime-chips"></div>
+      <div class="onboard-nav">
+        <button class="ghost" id="step4-back">Retour</button>
+        <button class="primary" id="step4-finish">Terminer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const ENVIES = [
+  { label: "Poulet", match: ["chicken", "fried_chicken", "poulet", "kfc", "wings"] },
+  { label: "Pizza", match: ["pizza"] },
+  { label: "Burger", match: ["burger"] },
+  { label: "Kebab", match: ["kebab"] },
+  { label: "Sushi", match: ["sushi", "japanese"] },
+  { label: "Asiatique", match: ["asian", "chinese", "vietnamese", "thai"] },
+  { label: "Italien", match: ["italian", "pasta"] },
+  { label: "Français", match: ["french", "regional"] },
+];
+const REGIMES = [
+  { label: "Végétarien", tag: "diet:vegetarian", keywords: ["vegetarian", "végétarien", "veggie"] },
+  { label: "Végan", tag: "diet:vegan", keywords: ["vegan", "végan"] },
+  { label: "Halal", tag: "diet:halal", keywords: ["halal"] },
+  { label: "Casher", tag: "diet:kosher", keywords: ["kosher", "casher"] },
+  { label: "Sans gluten", tag: "diet:gluten_free", keywords: ["gluten free", "sans gluten", "gluten-free"] },
+];
+// Critères additionnels : basés sur des tags OSM binaires. Comme les données sont fournies par la communauté,
+// tous les établissements ne les renseignent pas — ça filtre uniquement ceux qui l'ont explicitement indiqué.
+const EXTRAS = [
+  { label: "Terrasse", tag: "outdoor_seating", match: (v) => v === 'yes' },
+  { label: "À emporter", tag: "takeaway", match: (v) => v === 'yes' || v === 'only' },
+  { label: "Accessible PMR", tag: "wheelchair", match: (v) => v === 'yes' },
+  { label: "Bio", tag: "organic", match: (v) => v === 'yes' || v === 'only' },
+];
+const AMENITY_LABEL = { restaurant: "Restaurant", fast_food: "Fast-food", cafe: "Café" };
+
+// Analyseur simplifié du format "opening_hours" d'OpenStreetMap (ex: "Mo-Fr 09:00-18:00; Sa 09:00-12:00").
+// Ce format a une syntaxe très riche et complexe (exceptions, jours fériés, etc.) — on couvre ici les cas
+// les plus courants (plages de jours, plusieurs créneaux horaires, 24/7). Si on ne sait pas interpréter,
+// on renvoie null (= "inconnu") plutôt que de deviner et d'afficher une info potentiellement fausse.
+const OSM_DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+function isOpenNow(openingHours, now) {
+  if (!openingHours) return null;
+  const raw = openingHours.trim();
+  if (raw.toLowerCase() === '24/7') return true;
+  const currentDay = OSM_DAYS[now.getDay()];
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const groups = raw.split(';').map(g => g.trim()).filter(Boolean);
+  let matchedAnyGroup = false;
+  for (const group of groups) {
+    if (/^(off|closed)$/i.test(group)) continue; // on ignore les exceptions de fermeture, trop de cas particuliers pour être fiable
+    const parts = group.split(' ').filter(Boolean);
+    if (parts.length < 2) continue;
+    const dayPart = parts[0];
+    const timePart = parts.slice(1).join(' ');
+    // Jours : "Mo-Fr", "Mo,We,Fr", "Mo"
+    let daysOk = false;
+    if (/^\d/.test(dayPart)) continue; // dates spécifiques (ex: "Dec 25"), non gérées, on ignore ce groupe
+    dayPart.split(',').forEach(d => {
+      if (d.includes('-')) {
+        const [start, end] = d.split('-');
+        const si = OSM_DAYS.indexOf(start), ei = OSM_DAYS.indexOf(end), ci = OSM_DAYS.indexOf(currentDay);
+        if (si === -1 || ei === -1 || ci === -1) return;
+        if (si <= ei ? (ci >= si && ci <= ei) : (ci >= si || ci <= ei)) daysOk = true;
+      } else if (d === currentDay) {
+        daysOk = true;
+      }
+    });
+    if (!daysOk) continue;
+    matchedAnyGroup = true;
+    // Horaires : "09:00-18:00", plusieurs créneaux séparés par virgule
+    const slots = timePart.split(',');
+    for (const slot of slots) {
+      const m = slot.match(/^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/);
+      if (!m) continue;
+      const startMin = parseInt(m[1]) * 60 + parseInt(m[2]);
+      let endMin = parseInt(m[3]) * 60 + parseInt(m[4]);
+      if (endMin <= startMin) endMin += 24 * 60; // passe minuit
+      if (currentMinutes >= startMin && currentMinutes <= endMin) return true;
+    }
+  }
+  return matchedAnyGroup ? false : null; // un jour reconnu mais hors créneau = fermé ; rien de reconnu = inconnu
+}
+
+// Enseignes les plus connues en France, classées par popularité (les plus recherchées en premier).
+// Sert à corriger les abréviations familières ("mcdo") que la recherche d'adresse ne reconnaît pas
+// telles quelles, et à faire remonter l'enseigne connue avant un résultat obscur du même préfixe.
+const KNOWN_BRANDS = [
+  { display: "McDonald's", aliases: ["mcdo", "mc do", "mac do", "mcdonald", "mcdonalds"] },
+  { display: "KFC", aliases: ["kfc", "kentucky", "poulet frit kentucky"] },
+  { display: "Burger King", aliases: ["burger king", "bk"] },
+  { display: "Subway", aliases: ["subway"] },
+  { display: "Domino's Pizza", aliases: ["dominos", "domino's", "domino"] },
+  { display: "Quick", aliases: ["quick"] },
+  { display: "O'Tacos", aliases: ["o'tacos", "otacos", "o tacos"] },
+  { display: "Pizza Hut", aliases: ["pizza hut"] },
+  { display: "Starbucks", aliases: ["starbucks", "sbux"] },
+  { display: "Buffalo Grill", aliases: ["buffalo grill", "buffalo"] },
+  { display: "Flunch", aliases: ["flunch"] },
+  { display: "Courtepaille", aliases: ["courtepaille"] },
+  { display: "Five Guys", aliases: ["five guys"] },
+  { display: "Class'Croûte", aliases: ["class croute", "classcroute", "class'croute"] },
+  { display: "Del Arte", aliases: ["del arte", "delarte"] },
+  { display: "Léon de Bruxelles", aliases: ["leon de bruxelles", "léon"] },
+  { display: "Sushi Shop", aliases: ["sushi shop"] },
+  { display: "Brioche Dorée", aliases: ["brioche doree", "brioche dorée"] },
+];
+
+// Recherche locale, instantanée (sans requête réseau), dans le dictionnaire d'enseignes connues
+function findKnownBrands(text) {
+  const t = text.toLowerCase().trim();
+  if (t.length < 2) return [];
+  return KNOWN_BRANDS.filter(b =>
+    b.display.toLowerCase().includes(t) || b.aliases.some(a => a.includes(t) || t.includes(a))
+  );
+}
+
+const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter", // anciennement overpass.kumi.systems — "aucune limite de débit" annoncée
+  "https://maps.mail.ru/osm/tools/overpass/api/interpreter", // couverture mondiale, "aucune limite de requêtes" annoncée
+  "https://overpass.openstreetmap.ru/api/interpreter",
+];
+
+// Si un serveur renvoie "429 Too Many Requests", on arrête de le solliciter pendant un moment (cooldown)
+// plutôt que de continuer à le harceler (ce qui ne ferait qu'aggraver/prolonger son blocage).
+const mirrorCooldownUntil = new Map(); // endpoint -> timestamp (ms) jusqu'auquel on l'évite
+const COOLDOWN_MS = 45000; // 45 secondes
+
+function availableEndpoints() {
+  const now = Date.now();
+  const free = OVERPASS_ENDPOINTS.filter(ep => !mirrorCooldownUntil.has(ep) || mirrorCooldownUntil.get(ep) <= now);
+  // Si tous sont en cooldown (cas rare), on les utilise quand même plutôt que de bloquer complètement l'app
+  return free.length > 0 ? free : OVERPASS_ENDPOINTS;
+}
+
+let center = { lat: 43.6047, lon: 3.8797, label: "Montpellier (Comédie)" };
+let radius = 2000;
+let selectedEnvie = null;
+let selectedRegimes = [];
+let selectedExtras = [];
+let openNowOnly = false;
+let freeTextEnvie = '';
+let freeTextRegime = '';
+let markers = [];
+let youMarker = null;
+let userProfile = null; // { name, email, envies:[], regimes:[] } — en mémoire seulement, non persistant après fermeture
+const searchCache = new Map(); // clé: "lat,lon,radius" arrondis -> résultats bruts Overpass (évite de re-fetcher si rien n'a changé)
+const myRatings = new Map(); // id établissement -> { sum, count } — notes maison, en mémoire seulement (non partagées sans backend)
+const favorites = new Set(); // ids des établissements mis en favori, en mémoire seulement pendant la session
+let favoritesOnly = false;
+
+// --- Badges ludiques (en mémoire pendant la session) ---
+const badgeState = { viewedIds: new Set(), surpriseClicks: 0 };
+const earnedBadges = new Set();
+const BADGES = [
+  { id: 'first-bite', icon: '🍴', label: 'Première bouchée', check: () => badgeState.viewedIds.size >= 1 },
+  { id: 'explorer', icon: '🗺️', label: 'Explorateur', check: () => badgeState.viewedIds.size >= 5 },
+  { id: 'critic', icon: '⭐', label: 'Critique en herbe', check: () => myRatings.size >= 3 },
+  { id: 'gambler', icon: '🎲', label: 'Joueur', check: () => badgeState.surpriseClicks >= 3 },
+  { id: 'favorite', icon: '❤️', label: 'Coup de cœur', check: () => favorites.size >= 1 },
+  { id: 'gourmet', icon: '🏆', label: 'Explorateur gourmand', check: () => badgeState.viewedIds.size >= 15 },
+];
+
+function renderBadgeRow() {
+  const row = document.getElementById('badge-row');
+  row.innerHTML = BADGES.map(b =>
+    `<div class="badge-icon${earnedBadges.has(b.id) ? ' earned' : ''}" title="${escapeHtml(b.label)}${earnedBadges.has(b.id) ? '' : ' (pas encore débloqué)'}">${b.icon}</div>`
+  ).join('');
+}
+
+function showBadgeToast(badge) {
+  const container = document.getElementById('badge-toast-container');
+  const el = document.createElement('div');
+  el.className = 'badge-toast';
+  el.innerHTML = `
+    <div class="toast-icon">${badge.icon}</div>
+    <div><div class="toast-title">Badge débloqué</div><div class="toast-label">${escapeHtml(badge.label)}</div></div>
+  `;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 3600);
+}
+
+function checkBadges() {
+  let changed = false;
+  BADGES.forEach(b => {
+    if (!earnedBadges.has(b.id) && b.check()) {
+      earnedBadges.add(b.id);
+      showBadgeToast(b);
+      changed = true;
+    }
+  });
+  if (changed) renderBadgeRow();
+}
+let sortMode = 'distance'; // 'distance' | 'note'
+let minRating = 0; // 0 = pas de filtre, 1-5 = note minimum requise
+let lastRows = [];
+let lastWasCapped = false;
+let lastDiag = { rawCount: 0, afterMapCount: 0, afterFilterCount: 0 };
+let lastQuerySent = '';
+let lastRawResponseText = '';
+let lastCapNote = '';
+
+// --- Carte ---
+const map = L.map('map', { zoomControl: true }).setView([center.lat, center.lon], 15);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© contributeurs OpenStreetMap',
+  maxZoom: 19,
+}).addTo(map);
+
+// Regroupe les points quand il y en a trop (zoom faible), les sépare en dézoomant
+const clusterGroup = L.markerClusterGroup({
+  maxClusterRadius: 55,
+  spiderfyOnMaxZoom: true,
+  chunkedLoading: true, // affiche les pins par petits paquets au lieu de tout calculer d'un coup : rend la carte réactive même avec beaucoup de résultats
+  chunkInterval: 50,
+  iconCreateFunction: function(cluster) {
+    const count = cluster.getChildCount();
+    return L.divIcon({
+      html: `<div class="cluster-bubble">${count}</div>`,
+      className: '', iconSize: [40,40],
+    });
+  }
+}).addTo(map);
+
+// Un style de pin par type d'établissement, pour repérer d'un coup d'œil sur la carte.
+// Note : chaque style a un id de dégradé unique (pinGrad-r/f/c) — indispensable, sinon tous les pins
+// du document se mettraient à partager le même dégradé (bug classique avec des SVG inline répétés).
+const PIN_STYLES = {
+  restaurant: { id: 'r', from: '#FF8A6E', to: '#E63946', icon: '🍴' },
+  fast_food:  { id: 'f', from: '#FFC15E', to: '#E8973F', icon: '🍔' },
+  cafe:       { id: 'c', from: '#D9B48C', to: '#8B5E3C', icon: '☕' },
+};
+
+function buildPinSvg(style) {
+  return `
+<svg width="34" height="42" viewBox="0 0 34 42" xmlns="http://www.w3.org/2000/svg" style="overflow:visible;">
+  <defs>
+    <linearGradient id="pinGrad-${style.id}" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="${style.from}"/>
+      <stop offset="100%" stop-color="${style.to}"/>
+    </linearGradient>
+    <filter id="pinShadow-${style.id}" x="-60%" y="-40%" width="220%" height="220%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2.2" flood-color="#000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+  <ellipse cx="17" cy="39" rx="6" ry="2" fill="#000" opacity="0.28"/>
+  <circle cx="17" cy="17" r="15" fill="url(#pinGrad-${style.id})" stroke="#F5EFE3" stroke-width="2" filter="url(#pinShadow-${style.id})"/>
+  <text x="17" y="22" font-size="14" text-anchor="middle" fill="#F5EFE3">${style.icon}</text>
+</svg>`;
+}
+
+function pinIcon(mode='default', amenity){
+  if (mode === 'you') {
+    return L.divIcon({
+      className: '',
+      html: `<div class="pin you"></div>`,
+      iconSize: [26,26], iconAnchor: [13,26], popupAnchor: [0,-24],
+    });
+  }
+  if (mode === 'all') {
+    const style = PIN_STYLES[amenity] || PIN_STYLES.restaurant;
+    return L.divIcon({
+      className: 'resto-pin-wrap',
+      html: buildPinSvg(style),
+      iconSize: [34,42], iconAnchor: [17,25], popupAnchor: [0,-24],
+    });
+  }
+  return L.divIcon({
+    className: '',
+    html: `<div class="pin"></div>`,
+    iconSize: [26,26], iconAnchor: [13,26], popupAnchor: [0,-24],
+  });
+}
+
+// --- UI: chips ---
+const envieWrap = document.getElementById('envie-chips');
+ENVIES.forEach(e => {
+  const btn = document.createElement('button');
+  btn.className = 'chip';
+  btn.textContent = e.label;
+  btn.onclick = () => {
+    selectedEnvie = selectedEnvie === e.label ? null : e.label;
+    document.querySelectorAll('#envie-chips .chip').forEach(c => c.classList.remove('active-envie'));
+    if (selectedEnvie) btn.classList.add('active-envie');
+  };
+  envieWrap.appendChild(btn);
+});
+
+const regimeWrap = document.getElementById('regime-chips');
+REGIMES.forEach(r => {
+  const btn = document.createElement('button');
+  btn.className = 'chip';
+  btn.textContent = r.label;
+  btn.onclick = () => {
+    if (selectedRegimes.includes(r.tag)) {
+      selectedRegimes = selectedRegimes.filter(t => t !== r.tag);
+      btn.classList.remove('active-regime');
+    } else {
+      selectedRegimes.push(r.tag);
+      btn.classList.add('active-regime');
+    }
+  };
+  regimeWrap.appendChild(btn);
+});
+
+const extrasWrap = document.getElementById('extras-chips');
+EXTRAS.forEach(ex => {
+  const btn = document.createElement('button');
+  btn.className = 'chip';
+  btn.textContent = ex.label;
+  btn.onclick = () => {
+    if (selectedExtras.includes(ex.tag)) {
+      selectedExtras = selectedExtras.filter(t => t !== ex.tag);
+      btn.classList.remove('active-regime');
+    } else {
+      selectedExtras.push(ex.tag);
+      btn.classList.add('active-regime');
+    }
+    renderRows(); // filtre local, pas besoin de refaire une requête réseau
+  };
+  extrasWrap.appendChild(btn);
+});
+
+const openNowChip = document.getElementById('open-now-chip');
+openNowChip.onclick = () => {
+  openNowOnly = !openNowOnly;
+  openNowChip.classList.toggle('active-envie', openNowOnly);
+  renderRows(); // filtre local, pas besoin de refaire une requête réseau
+};
+
+const favoritesChip = document.getElementById('favorites-chip');
+favoritesChip.onclick = () => {
+  favoritesOnly = !favoritesOnly;
+  favoritesChip.classList.toggle('active-envie', favoritesOnly);
+  renderRows();
+};
+function renderFavCount() {
+  document.getElementById('fav-count').textContent = favorites.size;
+}
+
+// --- Recherche libre (texte) + autocomplétion d'enseignes (via Nominatim, rapide et indexé) ---
+const envieFreetext = document.getElementById('envie-freetext');
+const envieSuggestions = document.getElementById('envie-suggestions');
+let confirmedExactName = ''; // rempli quand l'utilisateur clique une suggestion -> recherche Overpass en correspondance EXACTE (rapide)
+let suggestDebounce = null;
+let suggestRequestToken = 0;
+
+envieFreetext.oninput = () => {
+  freeTextEnvie = envieFreetext.value.trim().toLowerCase();
+  confirmedExactName = ''; // on retape -> la sélection précédente n'est plus valable
+  clearTimeout(suggestDebounce);
+  const text = envieFreetext.value.trim();
+  if (text.length < 2) { hideSuggestions(); return; }
+
+  // Les enseignes connues s'affichent tout de suite (recherche locale, pas de réseau), en tête de liste
+  const knownMatches = findKnownBrands(text);
+  renderSuggestions(knownMatches, []);
+
+  suggestDebounce = setTimeout(() => fetchSuggestions(text, knownMatches), 250);
+};
+
+envieFreetext.addEventListener('blur', () => setTimeout(hideSuggestions, 150)); // délai pour laisser le clic sur une suggestion s'exécuter
+
+function hideSuggestions() { envieSuggestions.classList.remove('show'); envieSuggestions.innerHTML = ''; }
+
+async function fetchSuggestions(text, knownMatches) {
+  // Pas d'AbortController ici (voir la note plus bas dans fetchOverpassOnce) : on utilise un simple jeton
+  // pour ignorer une réponse devenue obsolète si l'utilisateur a retapé quelque chose entre-temps.
+  const myToken = ++suggestRequestToken;
+  // Petite boîte englobante autour du centre courant pour prioriser les résultats proches (Nominatim est rapide et indexé, contrairement à Overpass en regex)
+  const span = 0.35; // ~35km selon la latitude, large pour ne pas rater les enseignes en périphérie
+  const viewbox = `${center.lon - span},${center.lat + span},${center.lon + span},${center.lat - span}`;
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=6&viewbox=${viewbox}&bounded=1&countrycodes=fr&q=${encodeURIComponent(text)}`;
+  try {
+    const res = await fetch(url);
+    if (myToken !== suggestRequestToken) return; // une saisie plus récente a déjà pris le relais
+    if (!res.ok) return;
+    const results = await res.json();
+    if (myToken !== suggestRequestToken) return;
+    renderSuggestions(knownMatches, results);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function renderSuggestions(knownMatches, nominatimResults) {
+  if (!knownMatches.length && !nominatimResults.length) { hideSuggestions(); return; }
+
+  // On évite d'afficher deux fois la même enseigne (une fois via le dictionnaire, une fois via Nominatim)
+  const knownNames = new Set(knownMatches.map(b => b.display.toLowerCase()));
+  const filteredNominatim = nominatimResults.filter(r => {
+    const shortName = r.display_name.split(',')[0].toLowerCase();
+    return ![...knownNames].some(k => shortName.includes(k));
+  });
+
+  const knownHtml = knownMatches.map((b, i) => `
+    <div class="sugg-item" data-kind="known" data-idx="${i}">
+      <div class="sugg-name">${escapeHtml(b.display)}</div>
+      <div class="sugg-sub">Enseigne connue — recherche rapide</div>
+    </div>`).join('');
+
+  const nominatimHtml = filteredNominatim.map((r, i) => {
+    const shortName = r.display_name.split(',')[0];
+    const rest = r.display_name.split(',').slice(1, 3).join(',').trim();
+    return `<div class="sugg-item" data-kind="nom" data-idx="${i}">
+      <div class="sugg-name">${escapeHtml(shortName)}</div>
+      <div class="sugg-sub">${escapeHtml(rest)}</div>
+    </div>`;
+  }).join('');
+
+  envieSuggestions.innerHTML = knownHtml + nominatimHtml;
+  envieSuggestions.classList.add('show');
+
+  envieSuggestions.querySelectorAll('.sugg-item[data-kind="known"]').forEach((el, i) => {
+    el.onclick = () => {
+      const chosen = knownMatches[i];
+      envieFreetext.value = chosen.display;
+      freeTextEnvie = chosen.display.toLowerCase();
+      confirmedExactName = chosen.display; // active la recherche Overpass en correspondance EXACTE (rapide, indexée)
+      hideSuggestions();
+      runSearch(true);
+    };
+  });
+  envieSuggestions.querySelectorAll('.sugg-item[data-kind="nom"]').forEach((el, i) => {
+    el.onclick = () => {
+      const chosen = filteredNominatim[i];
+      const shortName = chosen.display_name.split(',')[0];
+      envieFreetext.value = shortName;
+      freeTextEnvie = shortName.toLowerCase();
+      confirmedExactName = shortName; // active la recherche Overpass en correspondance EXACTE (rapide, indexée)
+      hideSuggestions();
+      runSearch(true);
+    };
+  });
+}
+
+const regimeFreetext = document.getElementById('regime-freetext');
+regimeFreetext.oninput = () => { freeTextRegime = regimeFreetext.value.trim().toLowerCase(); };
+
+// --- Rayon ---
+const radiusInput = document.getElementById('radius');
+const radiusVal = document.getElementById('radius-val');
+radiusInput.oninput = () => {
+  radius = Number(radiusInput.value);
+  radiusVal.textContent = (radius/1000).toFixed(1) + ' km';
+};
+
+// --- Géolocalisation ---
+const locateBtn = document.getElementById('locate-btn');
+
+function doGeolocate(btn, onSuccess) {
+  if (!navigator.geolocation) {
+    showStatus("Ton navigateur ne permet pas la géolocalisation.");
+    return;
+  }
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin">↻</span> Localisation…';
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      center = { lat: pos.coords.latitude, lon: pos.coords.longitude, label: "Ta position" };
+      document.getElementById('center-label').textContent = center.label;
+      map.setView([center.lat, center.lon], 15);
+      if (youMarker) map.removeLayer(youMarker);
+      youMarker = L.marker([center.lat, center.lon], { icon: pinIcon('you') }).addTo(map).bindPopup("Toi");
+      btn.disabled = false;
+      btn.innerHTML = original;
+      hideStatus();
+      runSearch(false);
+      if (onSuccess) onSuccess();
+    },
+    () => {
+      btn.disabled = false;
+      btn.innerHTML = original;
+      showStatus("Géolocalisation refusée ou indisponible — recherche centrée sur Montpellier.");
+    },
+    { enableHighAccuracy: true, timeout: 8000 }
+  );
+}
+locateBtn.onclick = () => doGeolocate(locateBtn);
+
+// --- Recherche d'adresse / ville (géocodage gratuit OpenStreetMap Nominatim) ---
+const addressInput = document.getElementById('address-search');
+const addressBtn = document.getElementById('address-search-btn');
+
+async function goToPlace(query, btn, defaultLabel, onSuccess) {
+  if (!query) return;
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin">↻</span> Recherche…';
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=fr&q=${encodeURIComponent(query)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const results = await res.json();
+    if (!results.length) {
+      showStatus(`Adresse introuvable : "${query}". Essaie avec plus de précision (ex: ville + code postal).`);
+      return;
+    }
+    const place = results[0];
+    center = { lat: parseFloat(place.lat), lon: parseFloat(place.lon), label: place.display_name.split(',').slice(0,2).join(',') };
+    document.getElementById('center-label').textContent = center.label;
+    map.setView([center.lat, center.lon], 14);
+    if (youMarker) map.removeLayer(youMarker);
+    youMarker = L.marker([center.lat, center.lon], { icon: pinIcon('you') }).addTo(map).bindPopup("Point de recherche");
+    hideStatus();
+    runSearch(false);
+    if (onSuccess) onSuccess();
+  } catch (e) {
+    showStatus("Impossible de contacter le service de recherche d'adresse. Réessaie dans un instant.");
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = defaultLabel;
+  }
+}
+
+addressBtn.onclick = () => goToPlace(addressInput.value.trim(), addressBtn, '🔎 Aller à cette ville');
+addressInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addressBtn.onclick(); });
+
+function showStatus(msg, retryFn) {
+  const el = document.getElementById('status-msg');
+  el.innerHTML = '';
+  el.appendChild(document.createTextNode(msg));
+  if (retryFn) {
+    const btn = document.createElement('button');
+    btn.textContent = '↻ Réessayer';
+    btn.className = 'retry-btn';
+    btn.onclick = retryFn;
+    el.appendChild(btn);
+  }
+  el.classList.add('show');
+}
+function hideStatus() {
+  document.getElementById('status-msg').classList.remove('show');
+}
+
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2-lat1) * Math.PI/180;
+  const dLon = (lon2-lon1) * Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function formatAddress(tags) {
+  const parts = [
+    [tags['addr:housenumber'], tags['addr:street']].filter(Boolean).join(' '),
+    tags['addr:postcode'], tags['addr:city']
+  ].filter(Boolean);
+  return parts.join(', ');
+}
+
+function clearMarkers() {
+  clusterGroup.clearLayers();
+  markers = [];
+}
+
+let searchInFlight = false;
+
+async function runSearch(applyFilters = true) {
+  if (searchInFlight) return; // évite deux recherches qui se chevauchent et se marchent dessus
+  searchInFlight = true;
+  const searchBtn = document.getElementById('search-btn');
+  searchBtn.disabled = true;
+  searchBtn.innerHTML = '<span class="spin">↻</span> Recherche en cours…';
+  hideStatus();
+  // On NE vide plus la carte ici : les anciens résultats restent affichés pendant le chargement
+  // (renderRows() les remplacera d'un coup quand les nouveaux seront prêts) — évite l'effet "carte vide" qui donne une impression de lenteur.
+  document.getElementById('result-count').textContent = 'Recherche en cours…';
+
+  // --- Ce qui part vraiment interroger le serveur (doit rester rapide) ---
+  // 1) nameKeywords : uniquement quand on tape le nom d'une enseigne à la main (ex: "mcdo") — recherche
+  //    floue sur nom+marque, ou correspondance EXACTE si une suggestion a été cliquée (encore plus rapide).
+  // 2) serverDietTags : uniquement le tag officiel diet:xxx=yes (correspondance exacte, très rapide).
+  // Tout le reste (chip "envie" comme Poulet/Pizza, texte de restriction tapé à la main) est filtré
+  // GRATUITEMENT côté navigateur une fois les données reçues, sans requête supplémentaire — donc sans risque
+  // de timeout, quel que soit le nombre de critères combinés.
+  let nameKeywords = [];
+  let serverDietTags = [];
+  if (applyFilters) {
+    if (freeTextEnvie) nameKeywords.push(freeTextEnvie);
+    selectedRegimes.forEach(tag => serverDietTags.push(tag));
+  }
+  nameKeywords = [...new Set(nameKeywords.filter(Boolean))];
+  const hasServerFilter = nameKeywords.length > 0 || serverDietTags.length > 0;
+
+  // Rayon effectif : seule une recherche par ENSEIGNE précise (ex: "McDo") a besoin d'un grand rayon minimum,
+  // car cette enseigne peut être loin — la requête reste légère (correspondance sur nom/marque seulement).
+  // Tout le reste garde le rayon choisi par l'utilisateur, ce qui allège la requête et évite les timeouts.
+  const BROWSE_CAP = 8000;
+  const KEYWORD_MIN_RADIUS = 8000;
+  const needsWideNet = nameKeywords.length > 0;
+  const effectiveRadius = needsWideNet
+    ? Math.min(Math.max(radius, KEYWORD_MIN_RADIUS), 15000)
+    : Math.min(radius, BROWSE_CAP);
+  const wasCapped = !needsWideNet && radius > BROWSE_CAP;
+  lastWasCapped = wasCapped;
+
+  const cacheKey = `${center.lat.toFixed(3)},${center.lon.toFixed(3)},${effectiveRadius},${nameKeywords.join('|')},${serverDietTags.join('|')},${confirmedExactName}`;
+  let cached = searchCache.get(cacheKey);
+  let data = (cached && cached.elements && cached.elements.length > 0) ? cached : null;
+  let lastError = null;
+
+  if (!data) {
+    const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const amenityFilter = `["amenity"~"^(restaurant|fast_food|cafe)$"]`;
+
+    function buildQuery(radiusToUse) {
+      let stmts = [];
+      function pushFor(extraFilter) {
+        stmts.push(`node${amenityFilter}${extraFilter}(around:${radiusToUse},${center.lat},${center.lon});`);
+        stmts.push(`way${amenityFilter}${extraFilter}(around:${radiusToUse},${center.lat},${center.lon});`);
+      }
+      if (hasServerFilter) {
+        if (nameKeywords.length) {
+          if (confirmedExactName && nameKeywords.includes(confirmedExactName.toLowerCase())) {
+            const escapeQuotes = (s) => s.replace(/"/g, '\\"');
+            ['name', 'brand'].forEach(tagKey => pushFor(`["${tagKey}"="${escapeQuotes(confirmedExactName)}"]`));
+          } else {
+            const pattern = nameKeywords.map(escapeRegex).join('|');
+            ['name', 'brand'].forEach(tagKey => pushFor(`["${tagKey}"~"${pattern}",i]`));
+          }
+        }
+        serverDietTags.forEach(tag => pushFor(`["${tag}"="yes"]`));
+      } else {
+        pushFor('');
+      }
+      // Pas de plafond de résultats : on veut TOUS les établissements du rayon, pour que le filtrage
+      // envie/régime (fait ensuite côté navigateur) porte sur la liste complète, pas sur un extrait tronqué.
+      return `[out:json][timeout:40];(\n${stmts.join('\n')}\n);out center tags;`;
+    }
+
+    // Une seule tentative (un serveur, une requête). rejectEmpty=true refuse une réponse vide pour laisser
+    // sa chance à une autre combinaison serveur/rayon lancée en parallèle.
+    function timeoutRejection(ms) {
+      return new Promise((_, reject) => setTimeout(() => reject(new Error("délai dépassé (serveur trop lent à répondre)")), ms));
+    }
+
+    async function fetchOverpassOnce(endpoint, queryStr, timeoutMs, rejectEmpty) {
+      try {
+        // Pas d'AbortController ici : dans certains environnements sandboxés (comme l'aperçu de fichier
+        // dans l'appli Claude), il déclenche une erreur "The object can not be cloned". On utilise donc
+        // une course contre un simple minuteur à la place, qui a le même effet pratique.
+        const res = await Promise.race([
+          fetch(endpoint, { method: 'POST', headers: {'Content-Type':'text/plain'}, body: queryStr }),
+          timeoutRejection(timeoutMs),
+        ]);
+        const text = await res.text();
+        lastQuerySent = queryStr;
+        lastRawResponseText = `[${endpoint}, HTTP ${res.status}] ` + text.slice(0, 600);
+        if (res.status === 429) {
+          mirrorCooldownUntil.set(endpoint, Date.now() + COOLDOWN_MS);
+        }
+        if (!res.ok) throw new Error('HTTP ' + res.status + ' — ' + text.slice(0, 200));
+        let json;
+        try { json = JSON.parse(text); } catch (e) { throw new Error('Réponse non-JSON : ' + text.slice(0, 200)); }
+        if (json && json.remark) throw new Error('Overpass remark: ' + json.remark);
+        if (rejectEmpty && (!json.elements || json.elements.length === 0)) throw new Error('réponse vide (miroir possiblement défaillant)');
+        return json;
+      } catch (err) {
+        throw new Error(endpoint + ' → ' + err.message);
+      }
+    }
+
+    const retryRadius = Math.max(2500, Math.round(effectiveRadius / 2));
+
+    // Un seul rayon à la fois par serveur (jamais 2 requêtes simultanées au même serveur — certains,
+    // comme overpass-api.de, appliquent une limite anti-abus stricte par adresse IP et renvoient un 429
+    // si on les sollicite deux fois en même temps). Les 3 serveurs restent interrogés en parallèle entre eux.
+    async function tryRadius(r, timeoutMs, rejectEmpty) {
+      const attempts = availableEndpoints().map(endpoint => fetchOverpassOnce(endpoint, buildQuery(r), timeoutMs, rejectEmpty));
+      return Promise.any(attempts);
+    }
+
+    try {
+      data = await tryRadius(effectiveRadius, 28000, true);
+      if (data.elements.length > 0) searchCache.set(cacheKey, data);
+    } catch (e) {
+      lastError = summarizeAggregateError(e);
+      console.error('Première tentative échouée, nouvel essai avec un rayon réduit :', lastError);
+      if (retryRadius < effectiveRadius) {
+        try {
+          data = await tryRadius(retryRadius, 24000, true);
+          if (data.elements.length > 0) {
+            searchCache.set(cacheKey, data);
+            lastWasCapped = true; // le résultat correspond à une zone plus petite que prévu
+          }
+        } catch (e2) {
+          lastError = summarizeAggregateError(e2);
+          console.error('Deuxième tentative aussi échouée, dernier recours en acceptant une réponse vide :', lastError);
+          // Dernier recours : on accepte cette fois une réponse vide comme résultat final possible
+          // (soit il n'y a vraiment aucun établissement dans cette zone, soit tous les miroirs sont instables —
+          // dans les deux cas, on ne peut plus faire mieux avec des serveurs gratuits).
+          try {
+            data = await tryRadius(retryRadius, 18000, false);
+          } catch (e3) {
+            lastError = summarizeAggregateError(e3);
+            console.error(e3);
+            data = null;
+          }
+        }
+      } else {
+        data = null;
+      }
+    }
+  }
+
+  searchBtn.disabled = false;
+  searchBtn.innerHTML = '🔎 Chercher où manger';
+
+  if (!data) {
+    searchInFlight = false;
+    hideMapLoading();
+    showStatus(
+      "Le service gratuit OpenStreetMap est momentanément surchargé (déjà réessayé automatiquement avec une zone plus petite, sans succès : " + (lastError || "erreur inconnue") + "). C'est un service public partagé, ça arrive de temps en temps sans que ce soit lié à l'app.",
+      () => runSearch(applyFilters)
+    );
+    return;
+  }
+
+  const rawCount = (data.elements || []).length;
+
+  let rows = (data.elements || []).map(el => {
+    const lat = el.lat ?? el.center?.lat;
+    const lon = el.lon ?? el.center?.lon;
+    const tags = el.tags || {};
+    if (lat == null || lon == null) return null;
+    const brand = tags.brand || tags.operator || '';
+    const displayName = tags.name || tags['name:fr'] || brand;
+    if (!displayName) return null; // aucun nom exploitable, on ignore
+
+    // Haystack : tout le texte utile pour matcher une envie/restriction, même quand le tag "cuisine" est vide ou mal renseigné
+    const haystack = [tags.name, tags['name:fr'], brand, tags.cuisine, tags.description]
+      .filter(Boolean).join(' ').toLowerCase();
+
+    return {
+      id: `${el.type}${el.id}`,
+      name: displayName,
+      amenity: tags.amenity,
+      cuisine: tags.cuisine || '',
+      haystack,
+      tags, lat, lon,
+      distanceKm: haversineKm(center.lat, center.lon, lat, lon),
+    };
+  }).filter(Boolean);
+  const afterMapCount = rows.length;
+
+  if (applyFilters) {
+    if (selectedEnvie) {
+      const opt = ENVIES.find(e => e.label === selectedEnvie);
+      rows = rows.filter(r => opt.match.some(m => r.haystack.includes(m)));
+    }
+    if (freeTextEnvie) {
+      rows = rows.filter(r => r.haystack.includes(freeTextEnvie));
+    }
+    if (selectedRegimes.length > 0) {
+      rows = rows.filter(r => selectedRegimes.every(tag => {
+        const reg = REGIMES.find(x => x.tag === tag);
+        // tag diet:xxx=yes officiel OU mot-clé trouvé dans le nom/cuisine (beaucoup d'établissements ne taguent pas proprement)
+        return r.tags[tag] === 'yes' || reg.keywords.some(k => r.haystack.includes(k));
+      }));
+    }
+    if (freeTextRegime) {
+      rows = rows.filter(r => {
+        const dietMatch = Object.keys(r.tags).some(k => k.startsWith('diet:') && k.includes(freeTextRegime) && r.tags[k] === 'yes');
+        return dietMatch || r.haystack.includes(freeTextRegime);
+      });
+    }
+  }
+  lastDiag = { rawCount, afterMapCount, afterFilterCount: rows.length };
+  lastRows = rows;
+  searchInFlight = false;
+  hideMapLoading();
+  renderRows();
+}
+
+// Résume TOUTES les erreurs de tous les serveurs essayés (pas seulement la première),
+// pour un vrai diagnostic complet au lieu de deviner à partir d'un seul message.
+function summarizeAggregateError(e) {
+  if (e && e.errors && e.errors.length) {
+    return e.errors.map(err => err.message).join(' | ');
+  }
+  return e.message || String(e);
+}
+
+async function shareRestaurant(r, dirUrl) {
+  const message = `🍴 ${r.name}\nDécouvert sur Où Manger\n📍 Itinéraire : ${dirUrl}`;
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: r.name, text: message });
+    } catch (e) {
+      // L'utilisateur a annulé le partage, ou le navigateur a refusé — pas grave, on ne fait rien
+    }
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(message);
+    showStatus("Lien copié — colle-le où tu veux (SMS, WhatsApp...) !");
+    setTimeout(hideStatus, 2500);
+  } catch (e) {
+    showStatus("Impossible de copier automatiquement. Voici le texte à copier toi-même : " + message);
+  }
+}
+
+function hideMapLoading() {
+  document.getElementById('map-loading').classList.add('hide');
+}
+
+function noteAvg(id) {
+  const r = myRatings.get(id);
+  if (!r || r.count === 0) return null;
+  return r.sum / r.count;
+}
+
+function renderRows() {
+  let rows = [...lastRows];
+
+  if (selectedExtras.length > 0) {
+    rows = rows.filter(r => selectedExtras.every(tag => {
+      const ex = EXTRAS.find(e => e.tag === tag);
+      return ex.match(r.tags[tag]);
+    }));
+  }
+
+  if (openNowOnly) {
+    const now = new Date();
+    rows = rows.filter(r => isOpenNow(r.tags.opening_hours, now) !== false);
+  }
+
+  if (favoritesOnly) {
+    rows = rows.filter(r => favorites.has(r.id));
+  }
+
+  if (minRating > 0) {
+    rows = rows.filter(r => {
+      const avg = noteAvg(r.id);
+      return avg != null && avg >= minRating;
+    });
+  }
+
+  if (sortMode === 'note') {
+    rows.sort((a,b) => {
+      const na = noteAvg(a.id), nb = noteAvg(b.id);
+      if (na == null && nb == null) return a.distanceKm - b.distanceKm; // pas de note = on retombe sur la distance
+      if (na == null) return 1;
+      if (nb == null) return -1;
+      return nb - na;
+    });
+  } else {
+    rows.sort((a,b) => a.distanceKm - b.distanceKm);
+  }
+
+  renderListView(rows);
+
+  const resultCountEl = document.getElementById('result-count');
+  resultCountEl.classList.remove('pop');
+  void resultCountEl.offsetWidth; // force le navigateur à relire le style pour permettre de rejouer l'animation
+  resultCountEl.classList.add('pop');
+  resultCountEl.innerHTML = '';
+  resultCountEl.appendChild(document.createTextNode(
+    (rows.length === 0 ? "Aucun établissement trouvé avec ces critères." : `${rows.length} établissement${rows.length>1?'s':''} trouvé${rows.length>1?'s':''}`)
+    + (minRating > 0 ? ` (note ≥ ${minRating}★ — masque les établissements pas encore notés)` : "")
+    + (lastWasCapped ? " (vue générale limitée à 8 km pour rester rapide — tape une envie/enseigne précise pour chercher plus loin)" : "")
+    + ` [diag: ${lastDiag.rawCount} reçus du serveur → ${lastDiag.afterMapCount} exploitables → ${lastDiag.afterFilterCount} après filtres]`
+  ));
+  const diagDetails = document.createElement('details');
+  diagDetails.style.cssText = 'margin-top:0.5rem; font-size:0.68rem; color:var(--muted);';
+  diagDetails.innerHTML = `<summary style="cursor:pointer;">Voir la requête envoyée / réponse brute du serveur</summary>
+    <div style="margin-top:0.4rem;"><strong>Requête envoyée :</strong><pre style="white-space:pre-wrap; word-break:break-all;">${escapeHtml(lastQuerySent)}</pre>
+    <strong>Réponse brute (extrait) :</strong><pre style="white-space:pre-wrap; word-break:break-all;">${escapeHtml(lastRawResponseText)}</pre></div>`;
+  resultCountEl.appendChild(diagDetails);
+
+  clearMarkers();
+  const bounds = [];
+  rows.forEach(r => {
+    const activeRegimes = REGIMES.filter(reg => r.tags[reg.tag] === 'yes');
+    const distLabel = r.distanceKm < 1 ? `${Math.round(r.distanceKm*1000)} m` : `${r.distanceKm.toFixed(1)} km`;
+    // Estimation à pied, vitesse moyenne ~4.8 km/h — indicatif, ne tient pas compte du tracé réel des rues
+    const walkMin = Math.round((r.distanceKm / 4.8) * 60);
+    const walkLabel = walkMin < 1 ? "à 1 min à pied" : walkMin < 60 ? `≈ ${walkMin} min à pied` : `≈ ${Math.round(walkMin/60*10)/10} h à pied`;
+    const openStatus = isOpenNow(r.tags.opening_hours, new Date());
+    const dirUrl = `https://www.google.com/maps/dir/?api=1&destination=${r.lat},${r.lon}`;
+    const avg = noteAvg(r.id);
+    const ratingInfo = myRatings.get(r.id);
+    const website = r.tags.website || r.tags['contact:website'];
+    // Photo : directe si tags.image est une URL, sinon via Wikimedia Commons si renseigné.
+    // Beaucoup d'établissements n'en ont aucune sur OpenStreetMap — c'est une donnée communautaire rare, on n'affiche rien dans ce cas plutôt que d'inventer.
+    let photoUrl = null;
+    if (r.tags.image && /^https?:\/\//.test(r.tags.image)) {
+      photoUrl = r.tags.image;
+    } else if (r.tags.wikimedia_commons && r.tags.wikimedia_commons.startsWith('File:')) {
+      photoUrl = `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(r.tags.wikimedia_commons.slice(5))}?width=400`;
+    }
+    // Beaucoup d'établissements n'ont pas de site renseigné sur OpenStreetMap (donnée communautaire incomplète) :
+    // on garantit quand même un moyen de trouver le site/menu via une recherche Google toute prête.
+    const searchFallbackUrl = `https://www.google.com/search?q=${encodeURIComponent(r.name + ' ' + (formatAddress(r.tags) || center.label) + ' menu')}`;
+
+    const popupHtml = `
+      ${photoUrl ? `<img src="${escapeHtml(photoUrl)}" class="pop-photo" alt="" onerror="this.remove()" />` : ''}
+      <div class="pop-title-row">
+        <div class="pop-title">${escapeHtml(r.name)}</div>
+        <button class="pop-fav-btn${favorites.has(r.id) ? ' active' : ''}" data-fav-id="${r.id}" title="Ajouter aux favoris">${favorites.has(r.id) ? '♥' : '♡'}</button>
+      </div>
+      <div class="pop-sub">${AMENITY_LABEL[r.amenity] || r.amenity}${r.cuisine ? ' · ' + escapeHtml(r.cuisine.replace(/;/g,', ')) : ''}</div>
+      ${activeRegimes.length ? `<div class="pop-badges">${activeRegimes.map(reg=>`<span class="pop-badge">${reg.label}</span>`).join('')}</div>` : ''}
+      <div class="pop-dist">${distLabel} · ${walkLabel}</div>
+      ${openStatus === true ? '<div class="pop-open-status open">🟢 Ouvert maintenant</div>' : openStatus === false ? '<div class="pop-open-status closed">🔴 Fermé actuellement</div>' : ''}
+      <div class="pop-rating">
+        ${avg != null ? `<span class="rating-avg">★ ${avg.toFixed(1)}</span> <span class="rating-count">(${ratingInfo.count} avis)</span>` : `<span class="rating-count">Pas encore noté — sois le premier</span>`}
+      </div>
+      <div class="star-input" data-id="${r.id}">
+        ${[1,2,3,4,5].map(n => `<span class="star" data-val="${n}">★</span>`).join('')}
+      </div>
+      <div class="pop-links">
+        <a href="${dirUrl}" target="_blank" rel="noopener noreferrer">📍 Itinéraire →</a>
+        ${website
+          ? `<a href="${escapeHtml(website)}" target="_blank" rel="noopener noreferrer">🌐 Site / menu →</a>`
+          : `<a href="${searchFallbackUrl}" target="_blank" rel="noopener noreferrer">🔍 Voir sur Google →</a>`}
+        <button class="pop-share-btn" data-share-id="${r.id}">📤 Partager</button>
+      </div>
+    `;
+
+    const popupMaxWidth = Math.min(300, window.innerWidth - 60);
+    const marker = L.marker([r.lat, r.lon], { icon: pinIcon('all', r.amenity) }).bindPopup(popupHtml, { maxWidth: popupMaxWidth });
+    marker.ourId = r.id;
+    marker.on('popupopen', () => {
+      badgeState.viewedIds.add(r.id);
+      checkBadges();
+      const container = marker.getPopup().getElement();
+      container.querySelectorAll('.star-input .star').forEach(starEl => {
+        starEl.onclick = () => {
+          const val = parseInt(starEl.dataset.val, 10);
+          const id = r.id;
+          const current = myRatings.get(id) || { sum: 0, count: 0 };
+          current.sum += val; current.count += 1;
+          myRatings.set(id, current);
+          checkBadges();
+          renderRows(); // recalcule et redessine (utile si le tri par note est actif)
+        };
+      });
+      const shareBtn = container.querySelector('.pop-share-btn');
+      if (shareBtn) {
+        shareBtn.onclick = () => shareRestaurant(r, dirUrl);
+      }
+      const favBtn = container.querySelector('.pop-fav-btn');
+      if (favBtn) {
+        favBtn.onclick = () => {
+          if (favorites.has(r.id)) {
+            favorites.delete(r.id);
+            favBtn.classList.remove('active');
+            favBtn.textContent = '♡';
+          } else {
+            favorites.add(r.id);
+            favBtn.classList.add('active');
+            favBtn.textContent = '♥';
+            checkBadges();
+          }
+          renderFavCount();
+          if (favoritesOnly) renderRows(); // si le filtre favoris est actif, on retire direct de la vue
+        };
+      }
+    });
+    clusterGroup.addLayer(marker);
+    markers.push(marker);
+    bounds.push([r.lat, r.lon]);
+  });
+
+  if (bounds.length > 0) {
+    map.fitBounds(bounds, { padding: [40,40], maxZoom: 16 });
+  }
+}
+
+// Centre la carte sur un établissement précis et ouvre sa popup (utilisé par la liste et le mode surprise-moi)
+function focusRestaurant(id) {
+  const marker = markers.find(m => m.ourId === id);
+  if (!marker) return;
+  closeMobilePanels();
+  showMapView();
+  if (clusterGroup.hasLayer(marker)) {
+    clusterGroup.zoomToShowLayer(marker, () => marker.openPopup());
+  } else {
+    map.setView(marker.getLatLng(), 17);
+    marker.openPopup();
+  }
+}
+
+// --- Bascule carte / liste ---
+const mapWrapEl = document.getElementById('map-wrap');
+const listViewEl = document.getElementById('list-view');
+const viewToggleBtn = document.getElementById('view-toggle-btn');
+let currentView = 'map';
+
+function showMapView() {
+  currentView = 'map';
+  mapWrapEl.style.display = 'block';
+  listViewEl.classList.remove('show');
+  viewToggleBtn.textContent = '📋 Vue liste';
+}
+function showListView() {
+  currentView = 'list';
+  mapWrapEl.style.display = 'none';
+  listViewEl.classList.add('show');
+  viewToggleBtn.textContent = '🗺️ Vue carte';
+}
+viewToggleBtn.onclick = () => { currentView === 'map' ? showListView() : showMapView(); };
+
+function renderListView(rows) {
+  const container = document.getElementById('list-view-items');
+  if (!rows.length) {
+    container.innerHTML = '<div class="list-empty">Aucun établissement à afficher avec ces critères.</div>';
+    return;
+  }
+  const icons = { restaurant: '🍴', fast_food: '🍔', cafe: '☕' };
+  container.innerHTML = rows.map(r => {
+    const distLabel = r.distanceKm < 1 ? `${Math.round(r.distanceKm*1000)} m` : `${r.distanceKm.toFixed(1)} km`;
+    const avg = noteAvg(r.id);
+    return `<div class="list-card" data-list-id="${r.id}">
+      <div class="lc-icon">${icons[r.amenity] || '🍴'}</div>
+      <div class="lc-body">
+        <div class="lc-name">${escapeHtml(r.name)}${favorites.has(r.id) ? ' ♥' : ''}</div>
+        <div class="lc-sub">${AMENITY_LABEL[r.amenity] || r.amenity}${r.cuisine ? ' · ' + escapeHtml(r.cuisine.replace(/;/g,', ')) : ''}</div>
+      </div>
+      <div class="lc-right">${distLabel}${avg != null ? `<br/>★ ${avg.toFixed(1)}` : ''}</div>
+    </div>`;
+  }).join('');
+  container.querySelectorAll('.list-card').forEach(card => {
+    card.onclick = () => focusRestaurant(card.dataset.listId);
+  });
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+document.getElementById('search-btn').onclick = () => {
+  closeMobilePanels(); // sans effet sur ordinateur, referme le panneau sur mobile pour voir direct la carte
+  runSearch(true);
+};
+
+// --- Mode surprise-moi ---
+document.getElementById('surprise-btn').onclick = () => {
+  if (!lastRows.length) {
+    showStatus("Lance d'abord une recherche, puis retente le tirage au sort !");
+    return;
+  }
+  // On retire le même filtrage que renderRows() applique déjà (extras + note mini), pour tirer parmi ce qui est vraiment affiché
+  let pool = [...lastRows];
+  if (selectedExtras.length > 0) {
+    pool = pool.filter(r => selectedExtras.every(tag => {
+      const ex = EXTRAS.find(e => e.tag === tag);
+      return ex.match(r.tags[tag]);
+    }));
+  }
+  if (minRating > 0) {
+    pool = pool.filter(r => { const avg = noteAvg(r.id); return avg != null && avg >= minRating; });
+  }
+  if (!pool.length) {
+    showStatus("Aucun établissement ne correspond aux critères actuels pour tirer au sort.");
+    return;
+  }
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  badgeState.surpriseClicks++;
+  checkBadges();
+  focusRestaurant(pick.id);
+};
+
+// --- Panneau mobile : sidebar ---
+const sidebarEl = document.getElementById('sidebar');
+const mobileScrim = document.getElementById('mobile-scrim');
+
+function closeMobilePanels() {
+  sidebarEl.classList.remove('mobile-open');
+  mobileScrim.classList.remove('show');
+}
+document.getElementById('open-sidebar-btn').onclick = () => {
+  sidebarEl.classList.add('mobile-open');
+  mobileScrim.classList.add('show');
+};
+mobileScrim.onclick = closeMobilePanels;
+document.getElementById('close-sidebar-btn').onclick = closeMobilePanels;
+
+document.getElementById('sort-select').onchange = (e) => {
+  sortMode = e.target.value;
+  renderRows();
+};
+
+document.getElementById('min-rating-select').onchange = (e) => {
+  minRating = parseInt(e.target.value, 10);
+  renderRows();
+};
+
+// --- Onboarding: prénom + préférences ---
+let onboardEnvies = [];
+let onboardRegimes = [];
+
+const onboardEnvieWrap = document.getElementById('onboard-envie-chips');
+ENVIES.forEach(e => {
+  const btn = document.createElement('button');
+  btn.className = 'chip';
+  btn.textContent = e.label;
+  btn.onclick = () => {
+    if (onboardEnvies.includes(e.label)) {
+      onboardEnvies = onboardEnvies.filter(x => x !== e.label);
+      btn.classList.remove('active-envie');
+    } else {
+      onboardEnvies.push(e.label);
+      btn.classList.add('active-envie');
+    }
+  };
+  onboardEnvieWrap.appendChild(btn);
+});
+
+const onboardRegimeWrap = document.getElementById('onboard-regime-chips');
+REGIMES.forEach(r => {
+  const btn = document.createElement('button');
+  btn.className = 'chip';
+  btn.textContent = r.label;
+  btn.onclick = () => {
+    if (onboardRegimes.includes(r.tag)) {
+      onboardRegimes = onboardRegimes.filter(t => t !== r.tag);
+      btn.classList.remove('active-regime');
+    } else {
+      onboardRegimes.push(r.tag);
+      btn.classList.add('active-regime');
+    }
+  };
+  onboardRegimeWrap.appendChild(btn);
+});
+
+function goToStep(n) {
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  document.getElementById('step-' + n).classList.add('active');
+  [1,2,3,4].forEach(i => document.getElementById('prog-' + i).classList.toggle('done', i <= n));
+}
+
+// Étape 1 : où es-tu ?
+const locGeolocBtn = document.getElementById('loc-geoloc-btn');
+const locAddressInput = document.getElementById('loc-address-input');
+const locAddressBtn = document.getElementById('loc-address-btn');
+
+locGeolocBtn.onclick = () => doGeolocate(locGeolocBtn, () => goToStep(2));
+locAddressBtn.onclick = () => goToPlace(locAddressInput.value.trim(), locAddressBtn, 'Valider cette ville', () => goToStep(2));
+locAddressInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') locAddressBtn.onclick(); });
+document.getElementById('onboard-skip-location').onclick = () => goToStep(2);
+
+document.getElementById('step2-next').onclick = () => goToStep(3);
+document.getElementById('step3-back').onclick = () => goToStep(2);
+document.getElementById('step3-next').onclick = () => goToStep(4);
+document.getElementById('step4-back').onclick = () => goToStep(3);
+
+document.getElementById('onboard-skip').onclick = () => {
+  document.getElementById('onboard-overlay').classList.remove('show');
+};
+
+document.getElementById('step4-finish').onclick = () => {
+  const name = document.getElementById('onboard-name').value.trim() || 'Toi';
+  userProfile = { name, envies: [...onboardEnvies], regimes: [...onboardRegimes] };
+  applyProfileToFilters();
+  document.getElementById('onboard-overlay').classList.remove('show');
+  runSearch(false);
+};
+
+document.getElementById('edit-profile-btn').onclick = () => {
+  goToStep(2); // on saute direct à l'étape prénom — le choix de ville se fait via la sidebar (ville / ma position)
+  if (userProfile) {
+    document.getElementById('onboard-name').value = userProfile.name;
+  }
+  document.getElementById('onboard-overlay').classList.add('show');
+};
+
+function applyProfileToFilters() {
+  if (!userProfile) return;
+
+  // Pré-remplit les régimes
+  selectedRegimes = [...userProfile.regimes];
+  document.querySelectorAll('#regime-chips .chip').forEach((btn, i) => {
+    btn.classList.toggle('active-regime', selectedRegimes.includes(REGIMES[i].tag));
+  });
+
+  // Pré-sélectionne la première envie préférée (modifiable ensuite)
+  if (userProfile.envies.length > 0) {
+    selectedEnvie = userProfile.envies[0];
+    document.querySelectorAll('#envie-chips .chip').forEach(btn => {
+      btn.classList.toggle('active-envie', btn.textContent === selectedEnvie);
+    });
+  }
+
+  // Résumé profil dans la sidebar
+  const summary = document.getElementById('profile-summary');
+  const nameLabel = document.getElementById('profile-name-label');
+  const pillsWrap = document.getElementById('profile-pills');
+  nameLabel.textContent = 'Salut ' + userProfile.name;
+  pillsWrap.innerHTML = '';
+  [...userProfile.envies, ...userProfile.regimes.map(t => REGIMES.find(r => r.tag === t)?.label)]
+    .filter(Boolean)
+    .forEach(label => {
+      const pill = document.createElement('span');
+      pill.className = 'profile-pill';
+      pill.textContent = label;
+      pillsWrap.appendChild(pill);
+    });
+  summary.style.display = 'block';
+}
+
+const aboutOverlay = document.getElementById('about-overlay');
+document.getElementById('open-about-btn').onclick = () => aboutOverlay.classList.add('show');
+document.getElementById('close-about-btn').onclick = () => aboutOverlay.classList.remove('show');
+document.getElementById('about-close-btn-2').onclick = () => aboutOverlay.classList.remove('show');
+
+renderBadgeRow();
+
+document.getElementById('landing-start-btn').onclick = () => {
+  document.getElementById('landing').classList.add('hide');
+  document.getElementById('onboard-overlay').classList.add('show');
+};
+
+// Recherche initiale sur Montpellier au chargement (tous les établissements, sans filtre)
+runSearch(false);
+</script>
+</body>
+</html>
