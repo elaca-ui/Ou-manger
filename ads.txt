@@ -1,0 +1,4 @@
+# Remplace pub-XXXXXXXXXXXXXXXX par ton vrai ID éditeur AdSense (visible dans ton compte Google AdSense,
+# format "pub-" suivi de chiffres — c'est le même identifiant que "ca-pub-..." dans le site, sans le "ca-").
+# Ce fichier doit être uploadé à la RACINE de ton site GitHub Pages (à côté d'index.html), sous le nom exact "ads.txt".
+google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0
